@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cannon Calculator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #202225;
+            color: #ffffff;
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+        .container {
+            background: #2f3136;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #40444b;
+        }
+        h2 {
+            margin-top: 0;
+            border-bottom: 2px solid #40444b;
+            padding-bottom: 10px;
+            color: #fff;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #b9bbbe;
+            font-weight: 600;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            background: #40444b;
+            border: 1px solid #202225;
+            color: #fff;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        select:focus, input:focus {
+            outline: 2px solid #7289da;
+        }
+        .output-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #40444b;
+        }
+        .output-box {
+            background: #202225;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .output-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.1rem;
+            color: #f6f6f7;
+        }
+        .stacks-info {
+            font-family: monospace;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        .bit-container {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .bit {
+            width: 35px;
+            height: 35px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+            font-family: monospace;
+            user-select: none;
+        }
+        .bit-0 {
+            background: #5c4033; /* Brown */
+            color: #ffffff;
+        }
+        .bit-1 {
+            background: #ffd166; /* Yellow */
+            color: #202225;
+        }
+        .note {
+            font-size: 0.85rem;
+            color: #a3a6aa;
+            margin-top: 4px;
+            font-style: italic;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Cannon Calculator</h2>
+    
+    <div class="form-group">
+        <label for="version">Cannon Version</label>
+        <select id="version" onchange="handleVersionChange()">
+            <option value="v1">V1</option>
+            <option value="v2">V2</option>
+            <option value="v3">V3</option>
+            <option value="v4">V4</option>
+        </select>
+    </div>
+
+    <div class="grid">
+        <div class="form-group">
+            <label for="ox">Origin X</label>
+            <input type="number" id="ox" value="0" oninput="calculate()">
+        </div>
+        <div class="form-group" id="z-origin-group">
+            <label for="oz">Origin Z</label>
+            <input type="number" id="oz" value="0" oninput="calculate()">
+        </div>
+        <div class="form-group">
+            <label for="tx">Target X</label>
+            <input type="number" id="tx" value="0" oninput="calculate()">
+        </div>
+        <div class="form-group" id="z-target-group">
+            <label for="tz">Target Z</label>
+            <input type="number" id="tz" value="0" oninput="calculate()">
+        </div>
+    </div>
+
+    <div class="form-group" id="rings-group">
+        <label for="rings">Rings (0 - 255)</label>
+        <input type="number" id="rings" value="0" min="0" max="255" oninput="calculate()">
+    </div>
+
+    <div class="output-section">
+        <div class="output-box" id="x-output-box">
+            <h3>X Axis Output</h3>
+            <div class="stacks-info" id="x-stacks">0 items (0 stacks + 0 remainder)</div>
+            <div id="v4-x-container" class="hidden">
+                <label>Distance Binary Layout (14 bits, Right-to-Left):</label>
+                <div class="note">This side is closer to the rings counter.</div>
+                <div class="bit-container" id="v4-x-bits"></div>
+            </div>
+        </div>
+
+        <div class="output-box" id="z-output-box">
+            <h3>Z Axis Output</h3>
+            <div class="stacks-info" id="z-stacks">0 items (0 stacks + 0 remainder)</div>
+            <div id="v4-z-container" class="hidden">
+                <label>Distance Binary Layout (14 bits, Left-to-Right):</label>
+                <div class="bit-container" id="v4-z-bits"></div>
+            </div>
+        </div>
+
+        <div class="output-box" id="rings-output-box">
+            <h3>Rings Binary Layout (8 bits, Right-to-Left)</h3>
+            <div class="bit-container" id="rings-bits"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function handleVersionChange() {
+    const version = document.getElementById('version').value;
+    
+    const zOriginGroup = document.getElementById('z-origin-group');
+    const zTargetGroup = document.getElementById('z-target-group');
+    const ringsGroup = document.getElementById('rings-group');
+    
+    const zOutputBox = document.getElementById('z-output-box');
+    const ringsOutputBox = document.getElementById('rings-output-box');
+    
+    const v4XContainer = document.getElementById('v4-x-container');
+    const v4ZContainer = document.getElementById('v4-z-container');
+
+    // Reset default visibilities
+    zOriginGroup.classList.remove('hidden');
+    zTargetGroup.classList.remove('hidden');
+    ringsGroup.classList.remove('hidden');
+    zOutputBox.classList.remove('hidden');
+    ringsOutputBox.classList.remove('hidden');
+    v4XContainer.classList.add('hidden');
+    v4ZContainer.classList.add('hidden');
+
+    if (version === 'v1') {
+        zOriginGroup.classList.add('hidden');
+        zTargetGroup.classList.add('hidden');
+        ringsGroup.classList.add('hidden');
+        zOutputBox.classList.add('hidden');
+        ringsOutputBox.classList.add('hidden');
+    } else if (version === 'v2') {
+        zOriginGroup.classList.add('hidden');
+        zTargetGroup.classList.add('hidden');
+        zOutputBox.classList.add('hidden');
+    } else if (version === 'v4') {
+        v4XContainer.classList.remove('hidden');
+        v4ZContainer.classList.remove('hidden');
+    }
+
+    calculate();
+}
+
+function renderBits(containerId, bitArray) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    bitArray.forEach(bit => {
+        const div = document.createElement('div');
+        div.className = `bit bit-${bit}`;
+        div.innerText = bit;
+        container.appendChild(div);
+    });
+}
+
+function calculate() {
+    const version = document.getElementById('version').value;
+    const ox = parseFloat(document.getElementById('ox').value) || 0;
+    const tx = parseFloat(document.getElementById('tx').value) || 0;
+    const oz = parseFloat(document.getElementById('oz').value) || 0;
+    const tz = parseFloat(document.getElementById('tz').value) || 0;
+    let rings = parseInt(document.getElementById('rings').value) || 0;
+
+    // Clamp rings logic
+    if (rings < 0) rings = 0;
+    if (rings > 255) rings = 255;
+
+    const dx = Math.abs(tx - ox);
+    const dz = Math.abs(tz - oz);
+
+    // Determine division factor
+    const factor = (version === 'v1' || version === 'v2') ? 0.67 : 6.7;
+
+    // Calculate X items
+    const totalX = Math.round(dx / factor);
+    const stacksX = Math.floor(totalX / 64);
+    const remX = totalX % 64;
+    document.getElementById('x-stacks').innerText = `${totalX} items (${stacksX} stacks + ${remX} remainder)`;
+
+    // Calculate Z items if version supports it
+    if (version === 'v3' || version === 'v4') {
+        const totalZ = Math.round(dz / factor);
+        const stacksZ = Math.floor(totalZ / 64);
+        const remZ = totalZ % 64;
+        document.getElementById('z-stacks').innerText = `${totalZ} items (${stacksZ} stacks + ${remZ} remainder)`;
+    }
+
+    // Render Rings Binary (8 bits, standard Right-to-Left reading)
+    if (version !== 'v1') {
+        let ringsBits = [];
+        for (let i = 7; i >= 0; i--) {
+            ringsBits.push((rings >> i) & 1);
+        }
+        renderBits('rings-bits', ringsBits);
+    }
+
+    // Render V4 Specific Bit Layouts (14 bits)
+    if (version === 'v4') {
+        // X goes from Right to Left (Standard binary representation)
+        let xBits = [];
+        for (let i = 13; i >= 0; i--) {
+            xBits.push((totalX >> i) & 1);
+        }
+        renderBits('v4-x-bits', xBits);
+
+        // Z goes from Left to Right (Reversed binary representation)
+        let zBits = [];
+        for (let i = 0; i < 14; i++) {
+            zBits.push((totalZ >> i) & 1);
+        }
+        renderBits('v4-z-bits', zBits);
+    }
+}
+
+// Initialize on page load
+handleVersionChange();
+</script>
+
+</body>
+              </html>
+              
