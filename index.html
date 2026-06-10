@@ -154,7 +154,7 @@
             <h3>X Axis Output</h3>
             <div class="stacks-info" id="x-stacks">0 items (0 stacks + 0 remainder)</div>
             <div id="v4-x-container" class="hidden">
-                <label>Distance Binary Layout (14 bits, Right-to-Left):</label>
+                <label>Binary Counter Layout (14 bits, Right-to-Left):</label>
                 <div class="note">This side is closer to the rings counter.</div>
                 <div class="bit-container" id="v4-x-bits"></div>
             </div>
@@ -164,7 +164,7 @@
             <h3>Z Axis Output</h3>
             <div class="stacks-info" id="z-stacks">0 items (0 stacks + 0 remainder)</div>
             <div id="v4-z-container" class="hidden">
-                <label>Distance Binary Layout (14 bits, Left-to-Right):</label>
+                <label>Binary Counter Layout (14 bits, Left-to-Right):</label>
                 <div class="bit-container" id="v4-z-bits"></div>
             </div>
         </div>
@@ -187,15 +187,20 @@ function handleVersionChange() {
     const zOutputBox = document.getElementById('z-output-box');
     const ringsOutputBox = document.getElementById('rings-output-box');
     
+    const xStacks = document.getElementById('x-stacks');
+    const zStacks = document.getElementById('z-stacks');
     const v4XContainer = document.getElementById('v4-x-container');
     const v4ZContainer = document.getElementById('v4-z-container');
 
-    // Reset default visibilities
+    // Reset defaults
     zOriginGroup.classList.remove('hidden');
     zTargetGroup.classList.remove('hidden');
     ringsGroup.classList.remove('hidden');
     zOutputBox.classList.remove('hidden');
     ringsOutputBox.classList.remove('hidden');
+    
+    xStacks.classList.remove('hidden');
+    zStacks.classList.remove('hidden');
     v4XContainer.classList.add('hidden');
     v4ZContainer.classList.add('hidden');
 
@@ -210,6 +215,10 @@ function handleVersionChange() {
         zTargetGroup.classList.add('hidden');
         zOutputBox.classList.add('hidden');
     } else if (version === 'v4') {
+        // Hide standard item displays for V4
+        xStacks.classList.add('hidden');
+        zStacks.classList.add('hidden');
+        // Show binary displays
         v4XContainer.classList.remove('hidden');
         v4ZContainer.classList.remove('hidden');
     }
@@ -236,31 +245,31 @@ function calculate() {
     const tz = parseFloat(document.getElementById('tz').value) || 0;
     let rings = parseInt(document.getElementById('rings').value) || 0;
 
-    // Clamp rings logic
     if (rings < 0) rings = 0;
     if (rings > 255) rings = 255;
 
     const dx = Math.abs(tx - ox);
     const dz = Math.abs(tz - oz);
 
-    // Determine division factor
     const factor = (version === 'v1' || version === 'v2') ? 0.67 : 6.7;
 
-    // Calculate X items
     const totalX = Math.round(dx / factor);
-    const stacksX = Math.floor(totalX / 64);
-    const remX = totalX % 64;
-    document.getElementById('x-stacks').innerText = `${totalX} items (${stacksX} stacks + ${remX} remainder)`;
+    const totalZ = Math.round(dz / factor);
 
-    // Calculate Z items if version supports it
-    if (version === 'v3' || version === 'v4') {
-        const totalZ = Math.round(dz / factor);
-        const stacksZ = Math.floor(totalZ / 64);
-        const remZ = totalZ % 64;
-        document.getElementById('z-stacks').innerText = `${totalZ} items (${stacksZ} stacks + ${remZ} remainder)`;
+    // Render text outputs for non-V4 versions
+    if (version !== 'v4') {
+        const stacksX = Math.floor(totalX / 64);
+        const remX = totalX % 64;
+        document.getElementById('x-stacks').innerText = `${totalX} items (${stacksX} stacks + ${remX} remainder)`;
+
+        if (version === 'v3') {
+            const stacksZ = Math.floor(totalZ / 64);
+            const remZ = totalZ % 64;
+            document.getElementById('z-stacks').innerText = `${totalZ} items (${stacksZ} stacks + ${remZ} remainder)`;
+        }
     }
 
-    // Render Rings Binary (8 bits, standard Right-to-Left reading)
+    // Render Rings Binary (8 bits, Right-to-Left)
     if (version !== 'v1') {
         let ringsBits = [];
         for (let i = 7; i >= 0; i--) {
@@ -269,16 +278,16 @@ function calculate() {
         renderBits('rings-bits', ringsBits);
     }
 
-    // Render V4 Specific Bit Layouts (14 bits)
+    // Render V4 Binary layout
     if (version === 'v4') {
-        // X goes from Right to Left (Standard binary representation)
+        // X: Right to Left
         let xBits = [];
         for (let i = 13; i >= 0; i--) {
             xBits.push((totalX >> i) & 1);
         }
         renderBits('v4-x-bits', xBits);
 
-        // Z goes from Left to Right (Reversed binary representation)
+        // Z: Left to Right
         let zBits = [];
         for (let i = 0; i < 14; i++) {
             zBits.push((totalZ >> i) & 1);
@@ -287,10 +296,8 @@ function calculate() {
     }
 }
 
-// Initialize on page load
 handleVersionChange();
 </script>
 
 </body>
-              </html>
-              
+</html>
