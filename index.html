@@ -251,7 +251,7 @@ function calculate() {
     const dx = Math.abs(tx - ox);
     const dz = Math.abs(tz - oz);
 
-    const factor = (version === 'v1' || version === 'v2') ? 0.67 : 6.7;
+    const factor = (version === 'v1' || version === 'v2') ? 0.67 : 7.875;
 
     const totalX = Math.round(dx / factor);
     const totalZ = Math.round(dz / factor);
