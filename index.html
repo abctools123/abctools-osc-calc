@@ -122,6 +122,18 @@
             <option value="v2">V2</option>
             <option value="v3">V3</option>
             <option value="v4">V4</option>
+            <option value="stab">Stab Shot Version</option>
+        </select>
+    </div>
+
+    <!-- Rotation selection for Stab Shot Version -->
+    <div class="form-group hidden" id="rotation-group">
+        <label for="rotation">Cannon Rotation</label>
+        <select id="rotation" onchange="calculate()">
+            <option value="NONE" selected>NONE (+,+)</option>
+            <option value="CW_90">CW_90 (-,+)</option>
+            <option value="CW_180">CW_180 (-,-)</option>
+            <option value="CCW_180">CCW_180 (+,-)</option>
         </select>
     </div>
 
@@ -165,6 +177,7 @@
             <div class="stacks-info" id="z-stacks">0 items (0 stacks + 0 remainder)</div>
             <div id="v4-z-container" class="hidden">
                 <label>Binary Counter Layout (14 bits, Left-to-Right):</label>
+                <div class="note">This side is closer to the rings counter.</div>
                 <div class="bit-container" id="v4-z-bits"></div>
             </div>
         </div>
@@ -183,6 +196,7 @@ function handleVersionChange() {
     const zOriginGroup = document.getElementById('z-origin-group');
     const zTargetGroup = document.getElementById('z-target-group');
     const ringsGroup = document.getElementById('rings-group');
+    const rotationGroup = document.getElementById('rotation-group');
     
     const zOutputBox = document.getElementById('z-output-box');
     const ringsOutputBox = document.getElementById('rings-output-box');
@@ -196,6 +210,7 @@ function handleVersionChange() {
     zOriginGroup.classList.remove('hidden');
     zTargetGroup.classList.remove('hidden');
     ringsGroup.classList.remove('hidden');
+    rotationGroup.classList.add('hidden');
     zOutputBox.classList.remove('hidden');
     ringsOutputBox.classList.remove('hidden');
     
@@ -221,6 +236,11 @@ function handleVersionChange() {
         // Show binary displays
         v4XContainer.classList.remove('hidden');
         v4ZContainer.classList.remove('hidden');
+    } else if (version === 'stab') {
+        // Show rotation dropdown and hide rings
+        rotationGroup.classList.remove('hidden');
+        ringsGroup.classList.add('hidden');
+        ringsOutputBox.classList.add('hidden');
     }
 
     calculate();
@@ -248,6 +268,49 @@ function calculate() {
     if (rings < 0) rings = 0;
     if (rings > 255) rings = 255;
 
+    // --- Stab Shot Version Calculation ---
+    if (version === 'stab') {
+        const rotation = document.getElementById('rotation').value;
+        const dx = tx - ox;
+        const dz = tz - oz;
+
+        // Rotation sign compatibility maps
+        const rotSigns = {
+            'NONE':    { sx:  1, sz:  1 },
+            'CW_90':   { sx: -1, sz:  1 },
+            'CW_180':  { sx: -1, sz: -1 },
+            'CCW_180': { sx:  1, sz: -1 }
+        };
+
+        const { sx, sz } = rotSigns[rotation] || { sx: 1, sz: 1 };
+        const factor = 4.1569196; // 270.199777 / 65 blocks per TNT
+
+        // Check directional compatibility
+        const validX = (dx * sx) >= 0;
+        const validZ = (dz * sz) >= 0;
+
+        // Total TNT needed = round(abs(d) / factor)
+        // Machine dispenses setting + 1, so counter setting = total - 1
+        const settingX = Math.round(Math.abs(dx) / factor) - 1;
+        const settingZ = Math.round(Math.abs(dz) / factor) - 1;
+
+        if (!validX || !validZ || settingX < 0 || settingZ < 0) {
+            document.getElementById('x-stacks').innerText = 'Invalid coordinates';
+            document.getElementById('z-stacks').innerText = 'Invalid coordinates';
+            return;
+        }
+
+        const stacksX = Math.floor(settingX / 64);
+        const remX = settingX % 64;
+        document.getElementById('x-stacks').innerText = `${settingX} items (${stacksX} stacks + ${remX} remainder)`;
+
+        const stacksZ = Math.floor(settingZ / 64);
+        const remZ = settingZ % 64;
+        document.getElementById('z-stacks').innerText = `${settingZ} items (${stacksZ} stacks + ${remZ} remainder)`;
+        return;
+    }
+
+    // --- Original Versions Calculation (v1, v2, v3, v4) ---
     const dx = Math.abs(tx - ox);
     const dz = Math.abs(tz - oz);
 
