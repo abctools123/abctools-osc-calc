@@ -171,7 +171,6 @@
                 <div class="note">This side is closer to the rings counter.</div>
                 <div class="bit-container" id="v4-x-bits"></div>
             </div>
-            <div id="stab3-x-details" class="note hidden"></div>
             <div id="x-est" class="note"></div>
         </div>
 
@@ -183,12 +182,11 @@
                 <div class="note">This side is closer to the rings counter.</div>
                 <div class="bit-container" id="v4-z-bits"></div>
             </div>
-            <div id="stab3-z-details" class="note hidden"></div>
             <div id="z-est" class="note"></div>
         </div>
 
         <div class="output-box" id="est-output-box">
-            <h3>Estimated Impact Location</h3>
+            <h3>Estimated Landing Location</h3>
             <div class="stacks-info" id="est-coords">X: 0.00, Z: 0.00</div>
             <div class="note" id="est-diff">Offset: ΔX: +0.00, ΔZ: +0.00 (Distance: 0.00 blocks)</div>
         </div>
@@ -219,8 +217,6 @@ function handleVersionChange() {
     const v4ZContainer = document.getElementById('v4-z-container');
     const xTitle = document.getElementById('x-title');
     const zTitle = document.getElementById('z-title');
-    const stab3XDetails = document.getElementById('stab3-x-details');
-    const stab3ZDetails = document.getElementById('stab3-z-details');
 
     // Reset defaults
     zOriginGroup.classList.remove('hidden');
@@ -237,8 +233,6 @@ function handleVersionChange() {
 
     if (xTitle) xTitle.innerText = 'X Axis Output';
     if (zTitle) zTitle.innerText = 'Z Axis Output';
-    if (stab3XDetails) stab3XDetails.classList.add('hidden');
-    if (stab3ZDetails) stab3ZDetails.classList.add('hidden');
 
     if (version === 'v1') {
         zOriginGroup.classList.add('hidden');
@@ -282,10 +276,10 @@ function handleVersionChange() {
 
         const currentRot = rotationSelect.value;
         rotationSelect.innerHTML = `
-            <option value="NONE">NONE: Quadrant 3 (-X, -Z)</option>
-            <option value="CW_90">CW_90: Quadrant 2 (-X, +Z)</option>
-            <option value="CW_180">CW_180: Quadrant 1 (+X, +Z)</option>
-            <option value="CCW_180">CCW_180: Quadrant 4 (+X, -Z)</option>
+            <option value="NONE">NONE (-,-)</option>
+            <option value="CW_90">CW_90 (-,+)</option>
+            <option value="CW_180">CW_180 (+,+)</option>
+            <option value="CCW_180">CCW_180 (+,-)</option>
         `;
         rotationSelect.value = currentRot || 'NONE';
     }
@@ -309,15 +303,15 @@ function formatDiff(val) {
     return sign + val.toFixed(2);
 }
 
-function updateEstimatedLocation(estX, estZ, tx, tz, is2D = true) {
+function updateEstimatedLocation(estX, estZ, tx, tz, is2D = true, errorMsg = 'Out of range') {
     const estCoords = document.getElementById('est-coords');
     const estDiff = document.getElementById('est-diff');
     const xEst = document.getElementById('x-est');
     const zEst = document.getElementById('z-est');
 
     if (estX === null || (is2D && estZ === null)) {
-        if (estCoords) estCoords.innerText = 'Invalid coordinates';
-        if (estDiff) estDiff.innerText = 'Cannot calculate estimated location';
+        if (estCoords) estCoords.innerText = errorMsg;
+        if (estDiff) estDiff.innerText = 'Cannot calculate estimated landing location';
         if (xEst) xEst.innerText = '';
         if (zEst) zEst.innerText = '';
         return;
@@ -341,19 +335,32 @@ function updateEstimatedLocation(estX, estZ, tx, tz, is2D = true) {
 
 function calculate() {
     const version = document.getElementById('version').value;
-    const ox = parseFloat(document.getElementById('ox').value) || 0;
-    const tx = parseFloat(document.getElementById('tx').value) || 0;
-    const oz = parseFloat(document.getElementById('oz').value) || 0;
-    const tz = parseFloat(document.getElementById('tz').value) || 0;
+    const rawOx = document.getElementById('ox').value;
+    const rawTx = document.getElementById('tx').value;
+    const rawOz = document.getElementById('oz').value;
+    const rawTz = document.getElementById('tz').value;
+
+    const ox = parseFloat(rawOx);
+    const tx = parseFloat(rawTx);
+    const oz = parseFloat(rawOz);
+    const tz = parseFloat(rawTz);
     let rings = parseInt(document.getElementById('rings').value) || 0;
 
     if (rings < 0) rings = 0;
     if (rings > 255) rings = 255;
 
-    const stab3XDetails = document.getElementById('stab3-x-details');
-    const stab3ZDetails = document.getElementById('stab3-z-details');
-    if (stab3XDetails) stab3XDetails.classList.add('hidden');
-    if (stab3ZDetails) stab3ZDetails.classList.add('hidden');
+    const is2D = version !== 'v1' && version !== 'v2';
+
+    if (isNaN(ox) || isNaN(tx) || (is2D && (isNaN(oz) || isNaN(tz)))) {
+        document.getElementById('x-stacks').innerText = 'Invalid coordinates';
+        if (is2D) document.getElementById('z-stacks').innerText = 'Invalid coordinates';
+        if (version === 'v4') {
+            renderBits('v4-x-bits', Array(14).fill(0));
+            renderBits('v4-z-bits', Array(14).fill(0));
+        }
+        updateEstimatedLocation(null, null, tx, tz, is2D, 'Invalid coordinates');
+        return;
+    }
 
     // --- Stab Shot Version Calculation ---
     if (version === 'stab') {
@@ -363,13 +370,13 @@ function calculate() {
 
         // Rotation sign compatibility maps
         const rotSigns = {
-            'NONE':    { sx:  1, sz:  1 },
-            'CW_90':   { sx: -1, sz:  1 },
-            'CW_180':  { sx: -1, sz: -1 },
-            'CCW_180': { sx:  1, sz: -1 }
+            'NONE':    { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
+            'CW_90':   { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
+            'CW_180':  { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
+            'CCW_180': { sx:  1, sz: -1, expX: '+X', expZ: '-Z' }
         };
 
-        const { sx, sz } = rotSigns[rotation] || { sx: 1, sz: 1 };
+        const { sx, sz, expX, expZ } = rotSigns[rotation] || { sx: 1, sz: 1, expX: '+X', expZ: '+Z' };
         const factor = 4.1569196; // 270.199777 / 65 blocks per TNT
 
         // Check directional compatibility
@@ -381,10 +388,26 @@ function calculate() {
         const settingX = Math.round(Math.abs(dx) / factor) - 1;
         const settingZ = Math.round(Math.abs(dz) / factor) - 1;
 
-        if (!validX || !validZ || settingX < 0 || settingZ < 0) {
-            document.getElementById('x-stacks').innerText = 'Invalid coordinates';
-            document.getElementById('z-stacks').innerText = 'Invalid coordinates';
-            updateEstimatedLocation(null, null, tx, tz);
+        let errX = null;
+        let errZ = null;
+
+        if (!validX) {
+            errX = `Out of range: wrong direction (expected ${expX})`;
+        } else if (settingX < 0) {
+            errX = 'Out of range: target too close (min ~2 blocks)';
+        }
+
+        if (!validZ) {
+            errZ = `Out of range: wrong direction (expected ${expZ})`;
+        } else if (settingZ < 0) {
+            errZ = 'Out of range: target too close (min ~2 blocks)';
+        }
+
+        if (errX || errZ) {
+            document.getElementById('x-stacks').innerText = errX || `${settingX} items (${Math.floor(settingX / 64)} stacks + ${settingX % 64} remainder)`;
+            document.getElementById('z-stacks').innerText = errZ || `${settingZ} items (${Math.floor(settingZ / 64)} stacks + ${settingZ % 64} remainder)`;
+            const summaryErr = (errX && errZ) ? 'Out of range (wrong direction for rotation)' : (errX || errZ);
+            updateEstimatedLocation(null, null, tx, tz, true, summaryErr);
             return;
         }
 
@@ -411,27 +434,38 @@ function calculate() {
         const dz = tz - oz;
 
         // Rotation sign compatibility maps
-        // NONE: Quadrant 3 (-X, -Z)
-        // CW_90: Quadrant 2 (-X, +Z)
-        // CW_180: Quadrant 1 (+X, +Z)
-        // CCW_180: Quadrant 4 (+X, -Z)
+        // NONE: (-X, -Z)
+        // CW_90: (-X, +Z)
+        // CW_180: (+X, +Z)
+        // CCW_180: (+X, -Z)
         const rotSignsV3 = {
-            'NONE':    { sx: -1, sz: -1 },
-            'CW_90':   { sx: -1, sz:  1 },
-            'CW_180':  { sx:  1, sz:  1 },
-            'CCW_180': { sx:  1, sz: -1 }
+            'NONE':    { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
+            'CW_90':   { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
+            'CW_180':  { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
+            'CCW_180': { sx:  1, sz: -1, expX: '+X', expZ: '-Z' }
         };
 
-        const { sx, sz } = rotSignsV3[rotation] || { sx: -1, sz: -1 };
+        const { sx, sz, expX, expZ } = rotSignsV3[rotation] || { sx: -1, sz: -1, expX: '-X', expZ: '-Z' };
 
-        // Check directional compatibility (same logic as stab shot)
+        // Check directional compatibility
         const validX = (dx * sx) >= 0;
         const validZ = (dz * sz) >= 0;
 
-        if (!validX || !validZ) {
-            document.getElementById('x-stacks').innerText = 'Invalid coordinates';
-            document.getElementById('z-stacks').innerText = 'Invalid coordinates';
-            updateEstimatedLocation(null, null, tx, tz);
+        let errX = null;
+        let errZ = null;
+
+        if (!validX) {
+            errX = `Out of range: wrong direction (expected ${expX})`;
+        }
+        if (!validZ) {
+            errZ = `Out of range: wrong direction (expected ${expZ})`;
+        }
+
+        if (errX || errZ) {
+            document.getElementById('x-stacks').innerText = errX || 'Out of range';
+            document.getElementById('z-stacks').innerText = errZ || 'Out of range';
+            const summaryErr = (errX && errZ) ? 'Out of range (wrong direction for rotation)' : (errX || errZ);
+            updateEstimatedLocation(null, null, tx, tz, true, summaryErr);
             return;
         }
 
@@ -464,15 +498,6 @@ function calculate() {
 
         document.getElementById('x-stacks').innerText = `${totalDropper} items (${stacksTotal} stacks + ${remTotal} remainder)`;
         document.getElementById('z-stacks').innerText = `${zDropper} items (${stacksZ} stacks + ${remZ} remainder)`;
-
-        if (stab3XDetails) {
-            stab3XDetails.classList.remove('hidden');
-            stab3XDetails.innerHTML = `<div>Delivered Propellant: ${actualX} TNT (Required: ${reqX})</div>`;
-        }
-        if (stab3ZDetails) {
-            stab3ZDetails.classList.remove('hidden');
-            stab3ZDetails.innerHTML = `<div>Delivered Propellant: ${actualZ} TNT (Required: ${reqZ}, +6 switch offset)</div>`;
-        }
 
         const estX = ox + sx * (actualX * xConst);
         const estZ = oz + sz * (actualZ * zConst);
@@ -524,6 +549,17 @@ function calculate() {
 
     // Render V4 Binary layout
     if (version === 'v4') {
+        const maxBits14 = 16383; // 2^14 - 1
+        if (totalX > maxBits14 || totalZ > maxBits14) {
+            let errs = [];
+            if (totalX > maxBits14) errs.push(`X exceeds 14 bits (${totalX} > ${maxBits14})`);
+            if (totalZ > maxBits14) errs.push(`Z exceeds 14 bits (${totalZ} > ${maxBits14})`);
+            updateEstimatedLocation(null, null, tx, tz, true, `Out of range: ${errs.join(', ')}`);
+            renderBits('v4-x-bits', Array(14).fill(0));
+            renderBits('v4-z-bits', Array(14).fill(0));
+            return;
+        }
+
         // X: Right to Left
         let xBits = [];
         for (let i = 13; i >= 0; i--) {
