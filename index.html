@@ -123,6 +123,7 @@
             <option value="v3">V3</option>
             <option value="v4">V4</option>
             <option value="stab">Stab Shot Version</option>
+            <option value="stab3">Stab Shot Version 3</option>
         </select>
     </div>
 
@@ -163,23 +164,33 @@
 
     <div class="output-section">
         <div class="output-box" id="x-output-box">
-            <h3>X Axis Output</h3>
+            <h3 id="x-title">X Axis Output</h3>
             <div class="stacks-info" id="x-stacks">0 items (0 stacks + 0 remainder)</div>
             <div id="v4-x-container" class="hidden">
                 <label>Binary Counter Layout (14 bits, Right-to-Left):</label>
                 <div class="note">This side is closer to the rings counter.</div>
                 <div class="bit-container" id="v4-x-bits"></div>
             </div>
+            <div id="stab3-x-details" class="note hidden"></div>
+            <div id="x-est" class="note"></div>
         </div>
 
         <div class="output-box" id="z-output-box">
-            <h3>Z Axis Output</h3>
+            <h3 id="z-title">Z Axis Output</h3>
             <div class="stacks-info" id="z-stacks">0 items (0 stacks + 0 remainder)</div>
             <div id="v4-z-container" class="hidden">
                 <label>Binary Counter Layout (14 bits, Left-to-Right):</label>
                 <div class="note">This side is closer to the rings counter.</div>
                 <div class="bit-container" id="v4-z-bits"></div>
             </div>
+            <div id="stab3-z-details" class="note hidden"></div>
+            <div id="z-est" class="note"></div>
+        </div>
+
+        <div class="output-box" id="est-output-box">
+            <h3>Estimated Impact Location</h3>
+            <div class="stacks-info" id="est-coords">X: 0.00, Z: 0.00</div>
+            <div class="note" id="est-diff">Offset: ΔX: +0.00, ΔZ: +0.00 (Distance: 0.00 blocks)</div>
         </div>
 
         <div class="output-box" id="rings-output-box">
@@ -197,6 +208,7 @@ function handleVersionChange() {
     const zTargetGroup = document.getElementById('z-target-group');
     const ringsGroup = document.getElementById('rings-group');
     const rotationGroup = document.getElementById('rotation-group');
+    const rotationSelect = document.getElementById('rotation');
     
     const zOutputBox = document.getElementById('z-output-box');
     const ringsOutputBox = document.getElementById('rings-output-box');
@@ -205,6 +217,10 @@ function handleVersionChange() {
     const zStacks = document.getElementById('z-stacks');
     const v4XContainer = document.getElementById('v4-x-container');
     const v4ZContainer = document.getElementById('v4-z-container');
+    const xTitle = document.getElementById('x-title');
+    const zTitle = document.getElementById('z-title');
+    const stab3XDetails = document.getElementById('stab3-x-details');
+    const stab3ZDetails = document.getElementById('stab3-z-details');
 
     // Reset defaults
     zOriginGroup.classList.remove('hidden');
@@ -218,6 +234,11 @@ function handleVersionChange() {
     zStacks.classList.remove('hidden');
     v4XContainer.classList.add('hidden');
     v4ZContainer.classList.add('hidden');
+
+    if (xTitle) xTitle.innerText = 'X Axis Output';
+    if (zTitle) zTitle.innerText = 'Z Axis Output';
+    if (stab3XDetails) stab3XDetails.classList.add('hidden');
+    if (stab3ZDetails) stab3ZDetails.classList.add('hidden');
 
     if (version === 'v1') {
         zOriginGroup.classList.add('hidden');
@@ -241,6 +262,32 @@ function handleVersionChange() {
         rotationGroup.classList.remove('hidden');
         ringsGroup.classList.add('hidden');
         ringsOutputBox.classList.add('hidden');
+
+        const currentRot = rotationSelect.value;
+        rotationSelect.innerHTML = `
+            <option value="NONE">NONE (+,+)</option>
+            <option value="CW_90">CW_90 (-,+)</option>
+            <option value="CW_180">CW_180 (-,-)</option>
+            <option value="CCW_180">CCW_180 (+,-)</option>
+        `;
+        rotationSelect.value = currentRot || 'NONE';
+    } else if (version === 'stab3') {
+        // Show rotation dropdown and hide rings
+        rotationGroup.classList.remove('hidden');
+        ringsGroup.classList.add('hidden');
+        ringsOutputBox.classList.add('hidden');
+
+        if (xTitle) xTitle.innerText = 'TOTAL Dropper (Main Counter)';
+        if (zTitle) zTitle.innerText = 'Z Dropper (Switch Counter)';
+
+        const currentRot = rotationSelect.value;
+        rotationSelect.innerHTML = `
+            <option value="NONE">NONE: Quadrant 3 (-X, -Z)</option>
+            <option value="CW_90">CW_90: Quadrant 2 (-X, +Z)</option>
+            <option value="CW_180">CW_180: Quadrant 1 (+X, +Z)</option>
+            <option value="CCW_180">CCW_180: Quadrant 4 (+X, -Z)</option>
+        `;
+        rotationSelect.value = currentRot || 'NONE';
     }
 
     calculate();
@@ -257,6 +304,41 @@ function renderBits(containerId, bitArray) {
     });
 }
 
+function formatDiff(val) {
+    const sign = val >= 0 ? '+' : '';
+    return sign + val.toFixed(2);
+}
+
+function updateEstimatedLocation(estX, estZ, tx, tz, is2D = true) {
+    const estCoords = document.getElementById('est-coords');
+    const estDiff = document.getElementById('est-diff');
+    const xEst = document.getElementById('x-est');
+    const zEst = document.getElementById('z-est');
+
+    if (estX === null || (is2D && estZ === null)) {
+        if (estCoords) estCoords.innerText = 'Invalid coordinates';
+        if (estDiff) estDiff.innerText = 'Cannot calculate estimated location';
+        if (xEst) xEst.innerText = '';
+        if (zEst) zEst.innerText = '';
+        return;
+    }
+
+    const diffX = estX - tx;
+    if (xEst) xEst.innerText = `Estimated X: ${estX.toFixed(2)} (ΔX: ${formatDiff(diffX)})`;
+
+    if (!is2D) {
+        if (estCoords) estCoords.innerText = `X: ${estX.toFixed(2)}`;
+        if (estDiff) estDiff.innerText = `Offset: ΔX: ${formatDiff(diffX)} blocks`;
+        if (zEst) zEst.innerText = '';
+    } else {
+        const diffZ = estZ - tz;
+        const dist = Math.hypot(diffX, diffZ);
+        if (estCoords) estCoords.innerText = `X: ${estX.toFixed(2)}, Z: ${estZ.toFixed(2)}`;
+        if (estDiff) estDiff.innerText = `Offset: ΔX: ${formatDiff(diffX)}, ΔZ: ${formatDiff(diffZ)} (${dist.toFixed(2)} blocks away)`;
+        if (zEst) zEst.innerText = `Estimated Z: ${estZ.toFixed(2)} (ΔZ: ${formatDiff(diffZ)})`;
+    }
+}
+
 function calculate() {
     const version = document.getElementById('version').value;
     const ox = parseFloat(document.getElementById('ox').value) || 0;
@@ -267,6 +349,11 @@ function calculate() {
 
     if (rings < 0) rings = 0;
     if (rings > 255) rings = 255;
+
+    const stab3XDetails = document.getElementById('stab3-x-details');
+    const stab3ZDetails = document.getElementById('stab3-z-details');
+    if (stab3XDetails) stab3XDetails.classList.add('hidden');
+    if (stab3ZDetails) stab3ZDetails.classList.add('hidden');
 
     // --- Stab Shot Version Calculation ---
     if (version === 'stab') {
@@ -297,6 +384,7 @@ function calculate() {
         if (!validX || !validZ || settingX < 0 || settingZ < 0) {
             document.getElementById('x-stacks').innerText = 'Invalid coordinates';
             document.getElementById('z-stacks').innerText = 'Invalid coordinates';
+            updateEstimatedLocation(null, null, tx, tz);
             return;
         }
 
@@ -307,6 +395,88 @@ function calculate() {
         const stacksZ = Math.floor(settingZ / 64);
         const remZ = settingZ % 64;
         document.getElementById('z-stacks').innerText = `${settingZ} items (${stacksZ} stacks + ${remZ} remainder)`;
+
+        const tntX = settingX + 1;
+        const tntZ = settingZ + 1;
+        const estX = ox + sx * (tntX * factor);
+        const estZ = oz + sz * (tntZ * factor);
+        updateEstimatedLocation(estX, estZ, tx, tz, true);
+        return;
+    }
+
+    // --- Stab Shot Version 3 Calculation ---
+    if (version === 'stab3') {
+        const rotation = document.getElementById('rotation').value;
+        const dx = tx - ox;
+        const dz = tz - oz;
+
+        // Rotation sign compatibility maps
+        // NONE: Quadrant 3 (-X, -Z)
+        // CW_90: Quadrant 2 (-X, +Z)
+        // CW_180: Quadrant 1 (+X, +Z)
+        // CCW_180: Quadrant 4 (+X, -Z)
+        const rotSignsV3 = {
+            'NONE':    { sx: -1, sz: -1 },
+            'CW_90':   { sx: -1, sz:  1 },
+            'CW_180':  { sx:  1, sz:  1 },
+            'CCW_180': { sx:  1, sz: -1 }
+        };
+
+        const { sx, sz } = rotSignsV3[rotation] || { sx: -1, sz: -1 };
+
+        // Check directional compatibility (same logic as stab shot)
+        const validX = (dx * sx) >= 0;
+        const validZ = (dz * sz) >= 0;
+
+        if (!validX || !validZ) {
+            document.getElementById('x-stacks').innerText = 'Invalid coordinates';
+            document.getElementById('z-stacks').innerText = 'Invalid coordinates';
+            updateEstimatedLocation(null, null, tx, tz);
+            return;
+        }
+
+        const zConst = 1.9998238276037341;
+        const xConst = 1.96427214083;
+
+        const targetXMotion = Math.abs(dx);
+        const targetZMotion = Math.abs(dz);
+
+        // 1. Calculate required propellant TNT for each axis based on absolute target displacement
+        const reqZ = Math.round(targetZMotion / zConst);
+        const reqX = Math.round(targetXMotion / xConst);
+
+        // 2. Dropper item distribution (compensating for the 6-pulse switch offset):
+        // Edge case: Z Dropper Items cannot be negative (minimum 0 items)
+        const zDropper = Math.max(0, reqZ - 6);
+
+        // Edge case: TOTAL Dropper Items must be at least (Z Dropper Items + 6) so X Propellant is not negative
+        const totalDropper = Math.max(reqX + reqZ, zDropper + 6);
+
+        // Actual propellant delivered
+        const actualZ = zDropper + 6;
+        const actualX = totalDropper - zDropper - 6;
+
+        const stacksTotal = Math.floor(totalDropper / 64);
+        const remTotal = totalDropper % 64;
+
+        const stacksZ = Math.floor(zDropper / 64);
+        const remZ = zDropper % 64;
+
+        document.getElementById('x-stacks').innerText = `${totalDropper} items (${stacksTotal} stacks + ${remTotal} remainder)`;
+        document.getElementById('z-stacks').innerText = `${zDropper} items (${stacksZ} stacks + ${remZ} remainder)`;
+
+        if (stab3XDetails) {
+            stab3XDetails.classList.remove('hidden');
+            stab3XDetails.innerHTML = `<div>Delivered Propellant: ${actualX} TNT (Required: ${reqX})</div>`;
+        }
+        if (stab3ZDetails) {
+            stab3ZDetails.classList.remove('hidden');
+            stab3ZDetails.innerHTML = `<div>Delivered Propellant: ${actualZ} TNT (Required: ${reqZ}, +6 switch offset)</div>`;
+        }
+
+        const estX = ox + sx * (actualX * xConst);
+        const estZ = oz + sz * (actualZ * zConst);
+        updateEstimatedLocation(estX, estZ, tx, tz, true);
         return;
     }
 
@@ -319,6 +489,9 @@ function calculate() {
     const totalX = Math.round(dx / factor);
     const totalZ = Math.round(dz / factor);
 
+    const dirX = tx >= ox ? 1 : -1;
+    const estX = ox + dirX * totalX * factor;
+
     // Render text outputs for non-V4 versions
     if (version !== 'v4') {
         const stacksX = Math.floor(totalX / 64);
@@ -330,6 +503,14 @@ function calculate() {
             const remZ = totalZ % 64;
             document.getElementById('z-stacks').innerText = `${totalZ} items (${stacksZ} stacks + ${remZ} remainder)`;
         }
+    }
+
+    if (version === 'v1' || version === 'v2') {
+        updateEstimatedLocation(estX, null, tx, null, false);
+    } else {
+        const dirZ = tz >= oz ? 1 : -1;
+        const estZ = oz + dirZ * totalZ * factor;
+        updateEstimatedLocation(estX, estZ, tx, tz, true);
     }
 
     // Render Rings Binary (8 bits, Right-to-Left)
