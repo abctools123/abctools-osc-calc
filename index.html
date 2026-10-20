@@ -276,7 +276,7 @@ function handleVersionChange() {
         ringsOutputBox.classList.add('hidden');
 
         if (xTitle) xTitle.innerText = 'TOTAL Dropper (Main Counter)';
-        if (zTitle) zTitle.innerText = 'Z Dropper (Switch Counter)';
+        if (zTitle) zTitle.innerText = 'Switch Dropper (Z Counter)';
 
         const currentRot = rotationSelect.value;
         rotationSelect.innerHTML = `
@@ -478,38 +478,40 @@ function calculate() {
             return;
         }
 
-        const zConst = 1.9998238276037341;
-        const xConst = 1.96427214083;
+        const zConst = 1.79984144484; // 1.9998238276037341 * 0.9
+        const xConst = 1.76784492675; // 1.96427214083 * 0.9
 
         const targetXMotion = Math.abs(dx);
         const targetZMotion = Math.abs(dz);
 
-        // 1. Calculate required propellant TNT for each axis based on absolute target displacement
+        // 1. Calculate required propellant units for each axis based on absolute target displacement
         const reqZ = Math.round(targetZMotion / zConst);
         const reqX = Math.round(targetXMotion / xConst);
 
         // 2. Dropper item distribution (compensating for the 6-pulse switch offset):
-        // Edge case: Z Dropper Items cannot be negative (minimum 0 items)
-        const zDropper = Math.max(0, reqZ - 6);
+        // Switch Dropper Items = Required_Z_Units + 6 (minimum 7 items to ensure at least 1 unit reaches Z)
+        const switchDropper = Math.max(7, reqZ + 6);
 
-        // Edge case: TOTAL Dropper Items must be at least (Z Dropper Items + 6) so X Propellant is not negative
-        const totalDropper = Math.max(reqX + reqZ, zDropper + 6);
+        // TOTAL Dropper Items = Required_X_Units + Required_Z_Units (must be >= Switch Dropper Items)
+        const totalDropper = Math.max(switchDropper, reqX + reqZ);
 
-        // Actual propellant delivered
-        const actualZ = zDropper + 6;
-        const actualX = totalDropper - zDropper - 6;
+        // Effective propellant delivered:
+        // Effective Z Propellant = (Switch Dropper Items) - 6
+        // Effective X Propellant = (TOTAL Dropper Items) - (Switch Dropper Items) + 6
+        const effectiveZ = switchDropper - 6;
+        const effectiveX = totalDropper - switchDropper + 6;
 
         const stacksTotal = Math.floor(totalDropper / 64);
         const remTotal = totalDropper % 64;
 
-        const stacksZ = Math.floor(zDropper / 64);
-        const remZ = zDropper % 64;
+        const stacksZ = Math.floor(switchDropper / 64);
+        const remZ = switchDropper % 64;
 
         document.getElementById('x-stacks').innerText = `${totalDropper} items (${stacksTotal} stacks + ${remTotal} remainder)`;
-        document.getElementById('z-stacks').innerText = `${zDropper} items (${stacksZ} stacks + ${remZ} remainder)`;
+        document.getElementById('z-stacks').innerText = `${switchDropper} items (${stacksZ} stacks + ${remZ} remainder)`;
 
-        const estX = ox + sx * (actualX * xConst);
-        const estZ = oz + sz * (actualZ * zConst);
+        const estX = ox + sx * (effectiveX * xConst);
+        const estZ = oz + sz * (effectiveZ * zConst);
         updateEstimatedLocation(estX, estZ, tx, tz, true);
         return;
     }
