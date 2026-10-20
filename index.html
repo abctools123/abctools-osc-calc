@@ -478,8 +478,16 @@ function calculate() {
             return;
         }
 
-        const zConst = 1.79984144484; // 1.9998238276037341 * 0.9
-        const xConst = 1.76784492675; // 1.96427214083 * 0.9
+        // Barrel constants (0.9 powder snow dampening applied)
+        const barrelA = 1.79984144484; // 1.9998238276037341 * 0.9
+        const barrelB = 1.76784492675; // 1.96427214083 * 0.9
+
+        // Rotation axis mapping (barrels swap world axes when rotated by 90 degrees):
+        // - NONE (-X, -Z) & CW_180 (+X, +Z): Constant X uses Barrel B, Constant Z uses Barrel A
+        // - CW_90 (+X, -Z) & CCW_90 (-X, +Z): Constant X uses Barrel A, Constant Z uses Barrel B
+        const isSwapped = (rotation === 'CW_90' || rotation === 'CCW_90' || rotation === 'CCW_180');
+        const xConst = isSwapped ? barrelA : barrelB;
+        const zConst = isSwapped ? barrelB : barrelA;
 
         const targetXMotion = Math.abs(dx);
         const targetZMotion = Math.abs(dz);
