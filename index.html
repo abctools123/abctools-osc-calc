@@ -264,7 +264,11 @@ function handleVersionChange() {
             <option value="CW_180">CW_180 (-,-)</option>
             <option value="CCW_180">CCW_180 (+,-)</option>
         `;
-        rotationSelect.value = currentRot || 'NONE';
+        if (currentRot === 'CCW_90') {
+            rotationSelect.value = 'CCW_180';
+        } else {
+            rotationSelect.value = currentRot || 'NONE';
+        }
     } else if (version === 'stab3') {
         // Show rotation dropdown and hide rings
         rotationGroup.classList.remove('hidden');
@@ -277,11 +281,15 @@ function handleVersionChange() {
         const currentRot = rotationSelect.value;
         rotationSelect.innerHTML = `
             <option value="NONE">NONE (-,-)</option>
-            <option value="CW_90">CW_90 (-,+)</option>
+            <option value="CW_90">CW_90 (+,-)</option>
             <option value="CW_180">CW_180 (+,+)</option>
-            <option value="CCW_180">CCW_180 (+,-)</option>
+            <option value="CCW_90">CCW_90 (-,+)</option>
         `;
-        rotationSelect.value = currentRot || 'NONE';
+        if (currentRot === 'CCW_180') {
+            rotationSelect.value = 'CCW_90';
+        } else {
+            rotationSelect.value = currentRot || 'NONE';
+        }
     }
 
     calculate();
@@ -435,14 +443,15 @@ function calculate() {
 
         // Rotation sign compatibility maps
         // NONE: (-X, -Z)
-        // CW_90: (-X, +Z)
+        // CW_90: (+X, -Z)
         // CW_180: (+X, +Z)
-        // CCW_180: (+X, -Z)
+        // CCW_90: (-X, +Z)
         const rotSignsV3 = {
             'NONE':    { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
-            'CW_90':   { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
+            'CW_90':   { sx:  1, sz: -1, expX: '+X', expZ: '-Z' },
             'CW_180':  { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
-            'CCW_180': { sx:  1, sz: -1, expX: '+X', expZ: '-Z' }
+            'CCW_90':  { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
+            'CCW_180': { sx: -1, sz:  1, expX: '-X', expZ: '+Z' }
         };
 
         const { sx, sz, expX, expZ } = rotSignsV3[rotation] || { sx: -1, sz: -1, expX: '-X', expZ: '-Z' };
