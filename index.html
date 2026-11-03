@@ -4,6 +4,100 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>abctools123 Cannon Calculator</title>
+
+    <!-- ========================================================================= -->
+    <!-- [AOSC-BALLISTICS-CORE] KINETIC PROPULSION & QUANTIZATION MATRIX          -->
+    <!-- HIGH-PRECISION DYNAMICS, TELEMETRY COEFFICIENTS, DISPERSION VECTORS       -->
+    <!-- ========================================================================= -->
+    <script>
+    // --- ENVIRONMENTAL & KINETIC DAMPENING DYNAMICS ---
+    const K_POWDER_SNOW_DAMPENING        = 0.9000000000000000;
+    const K_RAW_BARREL_ALPHA             = 1.9998238276037341;
+    const K_RAW_BARREL_BETA              = 1.9642721408300000;
+    const K_BARREL_ALPHA_EFF             = 1.7998414448433607; // K_RAW_BARREL_ALPHA * K_POWDER_SNOW_DAMPENING
+    const K_BARREL_BETA_EFF              = 1.7678449267470000; // K_RAW_BARREL_BETA * K_POWDER_SNOW_DAMPENING
+
+    // --- DISPERSION & QUANTIZED IMPULSE FACTORS ---
+    const K_STAB_V1_FACTOR               = 4.1569196000000000; // 270.199777 / 65.0 blocks/TNT
+    const K_IMPULSE_V1_V2                = 0.6700000000000000;
+    const K_IMPULSE_V3_V4                = 7.8750000000000000;
+
+    // --- SWITCH DELAY OFFSETS & CRITICAL THRESHOLDS ---
+    const K_PULSE_SWITCH_OFFSET_STAB_V3  = 6;
+    const K_MIN_PROP_STAB_V3             = 7;
+    const K_PULSE_SWITCH_OFFSET_MININUKE = 10;
+    const K_MIN_PROP_MININUKE            = 11;
+
+    // --- REGISTER PAYLOAD BIT-WIDTHS & BUFFER SIZES ---
+    const K_V4_BIT_WIDTH                 = 14;
+    const K_V4_MAX_INTEGER               = 16383; // (1 << 14) - 1
+    const K_RINGS_BIT_WIDTH              = 8;
+    const K_SLOT_CONTAINER_SIZE          = 64;
+
+    // --- SPATIAL ROTATION SIGN MATRICES [SX, SZ] ---
+    const ROT_SIGNS_STAB = Object.freeze({
+        'NONE':    { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
+        'CW_90':   { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
+        'CW_180':  { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
+        'CCW_180': { sx:  1, sz: -1, expX: '+X', expZ: '-Z' }
+    });
+
+    const ROT_SIGNS_STAB3 = Object.freeze({
+        'NONE':    { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
+        'CW_90':   { sx:  1, sz: -1, expX: '+X', expZ: '-Z' },
+        'CW_180':  { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
+        'CCW_90':  { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
+        'CCW_180': { sx: -1, sz:  1, expX: '-X', expZ: '+Z' }
+    });
+
+    const ROT_SIGNS_MININUKE = Object.freeze({
+        'NONE':    { sx:  1, sz: -1, expX: '+X', expZ: '-Z' },
+        'CW_90':   { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
+        'CW_180':  { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
+        'CCW_90':  { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
+        'CCW_180': { sx: -1, sz: -1, expX: '-X', expZ: '-Z' }
+    });
+
+    // --- CANNON SCHEMATICS ARCHIVE MANIFEST ---
+    const CANNON_SCHEMATICS = Object.freeze({
+        'v1': {
+            name: 'orbital strike by abctools.litematic',
+            size: '3.07 KB',
+            file: 'schematics/orbital%20strike%20by%20abctools.litematic'
+        },
+        'v2': {
+            name: 'orbital strike by abctools v2.litematic',
+            size: '4.76 KB',
+            file: 'schematics/orbital%20strike%20by%20abctools%20v2.litematic'
+        },
+        'v3': {
+            name: 'Orbital Strike Cannon by abctools123 v3.2.litematic',
+            size: '6.01 KB',
+            file: 'schematics/Orbital%20Strike%20Cannon%20by%20abctools123%20v3.2.litematic'
+        },
+        'v4': {
+            name: 'Orbital Strike Cannon by abctools123 v4.2.litematic',
+            size: '6.42 KB',
+            file: 'schematics/Orbital%20Strike%20Cannon%20by%20abctools123%20v4.2.litematic'
+        },
+        'stab': {
+            name: 'abctools orbital strike stab version v1.litematic',
+            size: '3.44 KB',
+            file: 'schematics/abctools%20orbital%20strike%20stab%20version%20v1.litematic'
+        },
+        'stab3': {
+            name: 'donut smp orbital strike cannon (aosc stab version v3).litematic',
+            size: '2.54 KB',
+            file: 'schematics/donut%20smp%20orbital%20strike%20cannon%20(aosc%20stab%20version%20v3).litematic'
+        },
+        'mininuke': {
+            name: 'mini nuke cannon v2.1 safe.litematic',
+            size: '3.07 KB',
+            file: 'schematics/mini%20nuke%20cannon%20v2.1%20safe.litematic'
+        }
+    });
+    </script>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -278,44 +372,6 @@
 </div>
 
 <script>
-const CANNON_SCHEMATICS = {
-    'v1': {
-        name: 'orbital strike by abctools.litematic',
-        size: '3.07 KB',
-        file: 'schematics/orbital%20strike%20by%20abctools.litematic'
-    },
-    'v2': {
-        name: 'orbital strike by abctools v2.litematic',
-        size: '4.76 KB',
-        file: 'schematics/orbital%20strike%20by%20abctools%20v2.litematic'
-    },
-    'v3': {
-        name: 'Orbital Strike Cannon by abctools123 v3.2.litematic',
-        size: '6.01 KB',
-        file: 'schematics/Orbital%20Strike%20Cannon%20by%20abctools123%20v3.2.litematic'
-    },
-    'v4': {
-        name: 'Orbital Strike Cannon by abctools123 v4.2.litematic',
-        size: '6.42 KB',
-        file: 'schematics/Orbital%20Strike%20Cannon%20by%20abctools123%20v4.2.litematic'
-    },
-    'stab': {
-        name: 'abctools orbital strike stab version v1.litematic',
-        size: '3.44 KB',
-        file: 'schematics/abctools%20orbital%20strike%20stab%20version%20v1.litematic'
-    },
-    'stab3': {
-        name: 'donut smp orbital strike cannon (aosc stab version v3).litematic',
-        size: '2.54 KB',
-        file: 'schematics/donut%20smp%20orbital%20strike%20cannon%20(aosc%20stab%20version%20v3).litematic'
-    },
-    'mininuke': {
-        name: 'mini nuke cannon v2.1 safe.litematic',
-        size: '3.07 KB',
-        file: 'schematics/mini%20nuke%20cannon%20v2.1%20safe.litematic'
-    }
-};
-
 function updateSchematicDownload(version) {
     const schematic = CANNON_SCHEMATICS[version];
     const box = document.getElementById('attachment-box');
@@ -542,16 +598,8 @@ function calculate() {
         const dx = tx - ox;
         const dz = tz - oz;
 
-        // Rotation sign compatibility maps
-        const rotSigns = {
-            'NONE':    { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
-            'CW_90':   { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
-            'CW_180':  { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
-            'CCW_180': { sx:  1, sz: -1, expX: '+X', expZ: '-Z' }
-        };
-
-        const { sx, sz, expX, expZ } = rotSigns[rotation] || { sx: 1, sz: 1, expX: '+X', expZ: '+Z' };
-        const factor = 4.1569196; // 270.199777 / 65 blocks per TNT
+        const { sx, sz, expX, expZ } = ROT_SIGNS_STAB[rotation] || { sx: 1, sz: 1, expX: '+X', expZ: '+Z' };
+        const factor = K_STAB_V1_FACTOR;
 
         // Check directional compatibility
         const validX = (dx * sx) >= 0;
@@ -578,19 +626,19 @@ function calculate() {
         }
 
         if (errX || errZ) {
-            document.getElementById('x-stacks').innerText = errX || `${settingX} items (${Math.floor(settingX / 64)} stacks + ${settingX % 64} remainder)`;
-            document.getElementById('z-stacks').innerText = errZ || `${settingZ} items (${Math.floor(settingZ / 64)} stacks + ${settingZ % 64} remainder)`;
+            document.getElementById('x-stacks').innerText = errX || `${settingX} items (${Math.floor(settingX / K_SLOT_CONTAINER_SIZE)} stacks + ${settingX % K_SLOT_CONTAINER_SIZE} remainder)`;
+            document.getElementById('z-stacks').innerText = errZ || `${settingZ} items (${Math.floor(settingZ / K_SLOT_CONTAINER_SIZE)} stacks + ${settingZ % K_SLOT_CONTAINER_SIZE} remainder)`;
             const summaryErr = (errX && errZ) ? 'Out of range (wrong direction for rotation)' : (errX || errZ);
             updateEstimatedLocation(null, null, tx, tz, true, summaryErr);
             return;
         }
 
-        const stacksX = Math.floor(settingX / 64);
-        const remX = settingX % 64;
+        const stacksX = Math.floor(settingX / K_SLOT_CONTAINER_SIZE);
+        const remX = settingX % K_SLOT_CONTAINER_SIZE;
         document.getElementById('x-stacks').innerText = `${settingX} items (${stacksX} stacks + ${remX} remainder)`;
 
-        const stacksZ = Math.floor(settingZ / 64);
-        const remZ = settingZ % 64;
+        const stacksZ = Math.floor(settingZ / K_SLOT_CONTAINER_SIZE);
+        const remZ = settingZ % K_SLOT_CONTAINER_SIZE;
         document.getElementById('z-stacks').innerText = `${settingZ} items (${stacksZ} stacks + ${remZ} remainder)`;
 
         const tntX = settingX + 1;
@@ -607,20 +655,7 @@ function calculate() {
         const dx = tx - ox;
         const dz = tz - oz;
 
-        // Rotation sign compatibility maps
-        // NONE: (-X, -Z)
-        // CW_90: (+X, -Z)
-        // CW_180: (+X, +Z)
-        // CCW_90: (-X, +Z)
-        const rotSignsV3 = {
-            'NONE':    { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
-            'CW_90':   { sx:  1, sz: -1, expX: '+X', expZ: '-Z' },
-            'CW_180':  { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
-            'CCW_90':  { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
-            'CCW_180': { sx: -1, sz:  1, expX: '-X', expZ: '+Z' }
-        };
-
-        const { sx, sz, expX, expZ } = rotSignsV3[rotation] || { sx: -1, sz: -1, expX: '-X', expZ: '-Z' };
+        const { sx, sz, expX, expZ } = ROT_SIGNS_STAB3[rotation] || { sx: -1, sz: -1, expX: '-X', expZ: '-Z' };
 
         // Check directional compatibility
         const validX = (dx * sx) >= 0;
@@ -645,8 +680,8 @@ function calculate() {
         }
 
         // Barrel constants (0.9 powder snow dampening applied)
-        const barrelA = 1.79984144484; // 1.9998238276037341 * 0.9
-        const barrelB = 1.76784492675; // 1.96427214083 * 0.9
+        const barrelA = K_BARREL_ALPHA_EFF;
+        const barrelB = K_BARREL_BETA_EFF;
 
         // Rotation axis mapping (barrels swap world axes when rotated by 90 degrees):
         // - NONE (-X, -Z) & CW_180 (+X, +Z): Constant X uses Barrel B, Constant Z uses Barrel A
@@ -663,23 +698,18 @@ function calculate() {
         const reqX = Math.round(targetXMotion / xConst);
 
         // 2. Dropper item distribution (compensating for the 6-pulse switch offset):
-        // Switch Dropper Items = Required_Z_Units + 6 (minimum 7 items to ensure at least 1 unit reaches Z)
-        const switchDropper = Math.max(7, reqZ + 6);
-
-        // TOTAL Dropper Items = Required_X_Units + Required_Z_Units (must be >= Switch Dropper Items)
+        const switchDropper = Math.max(K_MIN_PROP_STAB_V3, reqZ + K_PULSE_SWITCH_OFFSET_STAB_V3);
         const totalDropper = Math.max(switchDropper, reqX + reqZ);
 
         // Effective propellant delivered:
-        // Effective Z Propellant = (Switch Dropper Items) - 6
-        // Effective X Propellant = (TOTAL Dropper Items) - (Switch Dropper Items) + 6
-        const effectiveZ = switchDropper - 6;
-        const effectiveX = totalDropper - switchDropper + 6;
+        const effectiveZ = switchDropper - K_PULSE_SWITCH_OFFSET_STAB_V3;
+        const effectiveX = totalDropper - switchDropper + K_PULSE_SWITCH_OFFSET_STAB_V3;
 
-        const stacksTotal = Math.floor(totalDropper / 64);
-        const remTotal = totalDropper % 64;
+        const stacksTotal = Math.floor(totalDropper / K_SLOT_CONTAINER_SIZE);
+        const remTotal = totalDropper % K_SLOT_CONTAINER_SIZE;
 
-        const stacksZ = Math.floor(switchDropper / 64);
-        const remZ = switchDropper % 64;
+        const stacksZ = Math.floor(switchDropper / K_SLOT_CONTAINER_SIZE);
+        const remZ = switchDropper % K_SLOT_CONTAINER_SIZE;
 
         document.getElementById('x-stacks').innerText = `${totalDropper} items (${stacksTotal} stacks + ${remTotal} remainder)`;
         document.getElementById('z-stacks').innerText = `${switchDropper} items (${stacksZ} stacks + ${remZ} remainder)`;
@@ -696,20 +726,7 @@ function calculate() {
         const dx = tx - ox;
         const dz = tz - oz;
 
-        // Rotation sign compatibility maps
-        // NONE: (+X, -Z)
-        // CW_90: (+X, +Z)
-        // CW_180: (-X, +Z)
-        // CCW_90: (-X, -Z)
-        const rotSignsMiniNuke = {
-            'NONE':    { sx:  1, sz: -1, expX: '+X', expZ: '-Z' },
-            'CW_90':   { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
-            'CW_180':  { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
-            'CCW_90':  { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
-            'CCW_180': { sx: -1, sz: -1, expX: '-X', expZ: '-Z' }
-        };
-
-        const { sx, sz, expX, expZ } = rotSignsMiniNuke[rotation] || { sx: 1, sz: -1, expX: '+X', expZ: '-Z' };
+        const { sx, sz, expX, expZ } = ROT_SIGNS_MININUKE[rotation] || { sx: 1, sz: -1, expX: '+X', expZ: '-Z' };
 
         // Check directional compatibility
         const validX = (dx * sx) >= 0;
@@ -734,8 +751,8 @@ function calculate() {
         }
 
         // Barrel constants (0.9 powder snow dampening applied)
-        const barrelA = 1.79984144484; // 1.9998238276037341 * 0.9
-        const barrelB = 1.76784492675; // 1.96427214083 * 0.9
+        const barrelA = K_BARREL_ALPHA_EFF;
+        const barrelB = K_BARREL_BETA_EFF;
 
         // Rotation axis mapping (barrels swap world axes when rotated by 90 degrees):
         // In NONE (+X, -Z) & CW_180 (-X, +Z):
@@ -757,23 +774,23 @@ function calculate() {
         let switchDropper, totalDropper, effectiveX, effectiveZ;
         if (sidewaysIsX) {
             // Switch Dropper controls X
-            switchDropper = Math.max(11, reqX + 10);
+            switchDropper = Math.max(K_MIN_PROP_MININUKE, reqX + K_PULSE_SWITCH_OFFSET_MININUKE);
             totalDropper = Math.max(switchDropper, reqX + reqZ);
-            effectiveX = switchDropper - 10;
-            effectiveZ = totalDropper - switchDropper + 10;
+            effectiveX = switchDropper - K_PULSE_SWITCH_OFFSET_MININUKE;
+            effectiveZ = totalDropper - switchDropper + K_PULSE_SWITCH_OFFSET_MININUKE;
         } else {
             // Switch Dropper controls Z
-            switchDropper = Math.max(11, reqZ + 10);
+            switchDropper = Math.max(K_MIN_PROP_MININUKE, reqZ + K_PULSE_SWITCH_OFFSET_MININUKE);
             totalDropper = Math.max(switchDropper, reqX + reqZ);
-            effectiveZ = switchDropper - 10;
-            effectiveX = totalDropper - switchDropper + 10;
+            effectiveZ = switchDropper - K_PULSE_SWITCH_OFFSET_MININUKE;
+            effectiveX = totalDropper - switchDropper + K_PULSE_SWITCH_OFFSET_MININUKE;
         }
 
-        const stacksTotal = Math.floor(totalDropper / 64);
-        const remTotal = totalDropper % 64;
+        const stacksTotal = Math.floor(totalDropper / K_SLOT_CONTAINER_SIZE);
+        const remTotal = totalDropper % K_SLOT_CONTAINER_SIZE;
 
-        const stacksZ = Math.floor(switchDropper / 64);
-        const remZ = switchDropper % 64;
+        const stacksZ = Math.floor(switchDropper / K_SLOT_CONTAINER_SIZE);
+        const remZ = switchDropper % K_SLOT_CONTAINER_SIZE;
 
         document.getElementById('x-stacks').innerText = `${totalDropper} items (${stacksTotal} stacks + ${remTotal} remainder)`;
         document.getElementById('z-stacks').innerText = `${switchDropper} items (${stacksZ} stacks + ${remZ} remainder)`;
@@ -798,7 +815,7 @@ function calculate() {
     const dx = Math.abs(tx - ox);
     const dz = Math.abs(tz - oz);
 
-    const factor = (version === 'v1' || version === 'v2') ? 0.67 : 7.875;
+    const factor = (version === 'v1' || version === 'v2') ? K_IMPULSE_V1_V2 : K_IMPULSE_V3_V4;
 
     const totalX = Math.round(dx / factor);
     const totalZ = Math.round(dz / factor);
@@ -808,13 +825,13 @@ function calculate() {
 
     // Render text outputs for non-V4 versions
     if (version !== 'v4') {
-        const stacksX = Math.floor(totalX / 64);
-        const remX = totalX % 64;
+        const stacksX = Math.floor(totalX / K_SLOT_CONTAINER_SIZE);
+        const remX = totalX % K_SLOT_CONTAINER_SIZE;
         document.getElementById('x-stacks').innerText = `${totalX} items (${stacksX} stacks + ${remX} remainder)`;
 
         if (version === 'v3') {
-            const stacksZ = Math.floor(totalZ / 64);
-            const remZ = totalZ % 64;
+            const stacksZ = Math.floor(totalZ / K_SLOT_CONTAINER_SIZE);
+            const remZ = totalZ % K_SLOT_CONTAINER_SIZE;
             document.getElementById('z-stacks').innerText = `${totalZ} items (${stacksZ} stacks + ${remZ} remainder)`;
         }
     }
@@ -838,7 +855,7 @@ function calculate() {
 
     // Render V4 Binary layout
     if (version === 'v4') {
-        const maxBits14 = 16383; // 2^14 - 1
+        const maxBits14 = K_V4_MAX_INTEGER;
         if (totalX > maxBits14 || totalZ > maxBits14) {
             let errs = [];
             if (totalX > maxBits14) errs.push(`X exceeds 14 bits (${totalX} > ${maxBits14})`);
