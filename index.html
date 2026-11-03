@@ -738,31 +738,36 @@ function calculate() {
         const barrelB = 1.76784492675; // 1.96427214083 * 0.9
 
         // Rotation axis mapping (barrels swap world axes when rotated by 90 degrees):
-        // - NONE (+X, -Z) & CW_180 (-X, +Z): Constant X uses Barrel B, Constant Z uses Barrel A
-        // - CW_90 (+X, +Z) & CCW_90 (-X, -Z): Constant X uses Barrel A, Constant Z uses Barrel B
-        const isSwapped = (rotation === 'CW_90' || rotation === 'CCW_90' || rotation === 'CCW_180');
-        const xConst = isSwapped ? barrelA : barrelB;
-        const zConst = isSwapped ? barrelB : barrelA;
+        // In NONE (+X, -Z) & CW_180 (-X, +Z):
+        //   Sideways barrel is X (Barrel B), Main barrel is Z (Barrel A)
+        // In CW_90 (+X, +Z) & CCW_90 (-X, -Z):
+        //   Sideways barrel is Z (Barrel B), Main barrel is X (Barrel A)
+        const sidewaysIsX = (rotation === 'NONE' || rotation === 'CW_180');
+        const xConst = sidewaysIsX ? barrelB : barrelA;
+        const zConst = sidewaysIsX ? barrelA : barrelB;
 
         const targetXMotion = Math.abs(dx);
         const targetZMotion = Math.abs(dz);
 
         // 1. Calculate required propellant units for each axis based on absolute target displacement
-        const reqZ = Math.round(targetZMotion / zConst);
         const reqX = Math.round(targetXMotion / xConst);
+        const reqZ = Math.round(targetZMotion / zConst);
 
         // 2. Dropper item distribution (compensating for the 10-pulse switch offset):
-        // Switch Dropper Items = Required_Z_Units + 10 (minimum 11 items to ensure at least 1 unit reaches Z)
-        const switchDropper = Math.max(11, reqZ + 10);
-
-        // TOTAL Dropper Items = Required_X_Units + Required_Z_Units (must be >= Switch Dropper Items)
-        const totalDropper = Math.max(switchDropper, reqX + reqZ);
-
-        // Effective propellant delivered:
-        // Effective Z Propellant = (Switch Dropper Items) - 10
-        // Effective X Propellant = (TOTAL Dropper Items) - (Switch Dropper Items) + 10
-        const effectiveZ = switchDropper - 10;
-        const effectiveX = totalDropper - switchDropper + 10;
+        let switchDropper, totalDropper, effectiveX, effectiveZ;
+        if (sidewaysIsX) {
+            // Switch Dropper controls X
+            switchDropper = Math.max(11, reqX + 10);
+            totalDropper = Math.max(switchDropper, reqX + reqZ);
+            effectiveX = switchDropper - 10;
+            effectiveZ = totalDropper - switchDropper + 10;
+        } else {
+            // Switch Dropper controls Z
+            switchDropper = Math.max(11, reqZ + 10);
+            totalDropper = Math.max(switchDropper, reqX + reqZ);
+            effectiveZ = switchDropper - 10;
+            effectiveX = totalDropper - switchDropper + 10;
+        }
 
         const stacksTotal = Math.floor(totalDropper / 64);
         const remTotal = totalDropper % 64;
@@ -776,6 +781,16 @@ function calculate() {
         const estX = ox + sx * (effectiveX * xConst);
         const estZ = oz + sz * (effectiveZ * zConst);
         updateEstimatedLocation(estX, estZ, tx, tz, true);
+
+        const diffX = estX - tx;
+        const diffZ = estZ - tz;
+        if (sidewaysIsX) {
+            document.getElementById('x-est').innerText = `Main Barrel (Z) | Estimated Z: ${estZ.toFixed(2)} (ΔZ: ${formatDiff(diffZ)})`;
+            document.getElementById('z-est').innerText = `Sideways Barrel (X) | Estimated X: ${estX.toFixed(2)} (ΔX: ${formatDiff(diffX)})`;
+        } else {
+            document.getElementById('x-est').innerText = `Main Barrel (X) | Estimated X: ${estX.toFixed(2)} (ΔX: ${formatDiff(diffX)})`;
+            document.getElementById('z-est').innerText = `Sideways Barrel (Z) | Estimated Z: ${estZ.toFixed(2)} (ΔZ: ${formatDiff(diffZ)})`;
+        }
         return;
     }
 
