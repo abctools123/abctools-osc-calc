@@ -105,6 +105,63 @@
             margin-top: 4px;
             font-style: italic;
         }
+        .attachment-box {
+            background: #2b2d31;
+            border: 1px solid #1e1f22;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-sizing: border-box;
+        }
+        .attachment-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .attachment-info {
+            flex-grow: 1;
+            min-width: 0;
+        }
+        .attachment-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .attachment-filename {
+            color: #00a8fc;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .attachment-filename:hover {
+            text-decoration: underline;
+            color: #58a6ff;
+        }
+        .attachment-size {
+            color: #949ba4;
+            font-size: 0.8rem;
+            margin-top: 2px;
+        }
+        .attachment-download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #b5bac1;
+            padding: 4px;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: color 0.15s, background 0.15s;
+            flex-shrink: 0;
+        }
+        .attachment-download-btn:hover {
+            color: #ffffff;
+            background: #35373c;
+        }
         .hidden {
             display: none !important;
         }
@@ -124,7 +181,29 @@
             <option value="v4">V4</option>
             <option value="stab">Stab Shot Version</option>
             <option value="stab3">Stab Shot Version 3</option>
+            <option value="mininuke">Mini Nuke Cannon</option>
         </select>
+        <div class="attachment-box" id="attachment-box">
+            <div class="attachment-icon">
+                <svg width="26" height="30" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 3C2 1.34315 3.34315 0 5 0H14.5858C15.3814 0 16.1445 0.316071 16.7071 0.87868L22.1213 6.29289C22.6839 6.8555 23 7.6186 23 8.41421V25C23 26.6569 21.6569 28 20 28H5C3.34315 28 2 26.6569 2 25V3Z" fill="#b5baf6"/>
+                    <path d="M15 0V6C15 7.10457 15.8954 8 17 8H23L15 0Z" fill="#7b84db"/>
+                </svg>
+            </div>
+            <div class="attachment-info">
+                <div class="attachment-title-row">
+                    <a id="attachment-link" class="attachment-filename" href="#" download>filename.litematic</a>
+                    <a id="attachment-download-icon" class="attachment-download-btn" href="#" download title="Download Schematic">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </a>
+                </div>
+                <div id="attachment-size" class="attachment-size">0.00 KB</div>
+            </div>
+        </div>
     </div>
 
     <!-- Rotation selection for Stab Shot Version -->
@@ -199,6 +278,71 @@
 </div>
 
 <script>
+const CANNON_SCHEMATICS = {
+    'v1': {
+        name: 'orbital strike by abctools.litematic',
+        size: '3.07 KB',
+        file: 'schematics/orbital%20strike%20by%20abctools.litematic'
+    },
+    'v2': {
+        name: 'orbital strike by abctools v2.litematic',
+        size: '4.76 KB',
+        file: 'schematics/orbital%20strike%20by%20abctools%20v2.litematic'
+    },
+    'v3': {
+        name: 'Orbital Strike Cannon by abctools123 v3.2.litematic',
+        size: '6.01 KB',
+        file: 'schematics/Orbital%20Strike%20Cannon%20by%20abctools123%20v3.2.litematic'
+    },
+    'v4': {
+        name: 'Orbital Strike Cannon by abctools123 v4.2.litematic',
+        size: '6.42 KB',
+        file: 'schematics/Orbital%20Strike%20Cannon%20by%20abctools123%20v4.2.litematic'
+    },
+    'stab': {
+        name: 'abctools orbital strike stab version v1.litematic',
+        size: '3.44 KB',
+        file: 'schematics/abctools%20orbital%20strike%20stab%20version%20v1.litematic'
+    },
+    'stab3': {
+        name: 'donut smp orbital strike cannon (aosc stab version v3).litematic',
+        size: '2.54 KB',
+        file: 'schematics/donut%20smp%20orbital%20strike%20cannon%20(aosc%20stab%20version%20v3).litematic'
+    },
+    'mininuke': {
+        name: 'mini nuke cannon v2.1 safe.litematic',
+        size: '3.07 KB',
+        file: 'schematics/mini%20nuke%20cannon%20v2.1%20safe.litematic'
+    }
+};
+
+function updateSchematicDownload(version) {
+    const schematic = CANNON_SCHEMATICS[version];
+    const box = document.getElementById('attachment-box');
+    const link = document.getElementById('attachment-link');
+    const size = document.getElementById('attachment-size');
+    const iconBtn = document.getElementById('attachment-download-icon');
+
+    if (!schematic) {
+        if (box) box.classList.add('hidden');
+        return;
+    }
+
+    if (box) box.classList.remove('hidden');
+    if (link) {
+        link.innerText = schematic.name;
+        link.href = schematic.file;
+        link.setAttribute('download', schematic.name);
+    }
+    if (size) {
+        size.innerText = schematic.size;
+    }
+    if (iconBtn) {
+        iconBtn.href = schematic.file;
+        iconBtn.setAttribute('download', schematic.name);
+    }
+}
+
 function handleVersionChange() {
     const version = document.getElementById('version').value;
     
@@ -290,8 +434,30 @@ function handleVersionChange() {
         } else {
             rotationSelect.value = currentRot || 'NONE';
         }
+    } else if (version === 'mininuke') {
+        // Show rotation dropdown and hide rings
+        rotationGroup.classList.remove('hidden');
+        ringsGroup.classList.add('hidden');
+        ringsOutputBox.classList.add('hidden');
+
+        if (xTitle) xTitle.innerText = 'total Dropper';
+        if (zTitle) zTitle.innerText = 'sideways Dropper';
+
+        const currentRot = rotationSelect.value;
+        rotationSelect.innerHTML = `
+            <option value="NONE">NONE (+,-)</option>
+            <option value="CW_90">CW_90 (+,+)</option>
+            <option value="CW_180">CW_180 (-,+)</option>
+            <option value="CCW_90">CCW_90 (-,-)</option>
+        `;
+        if (currentRot === 'CCW_180') {
+            rotationSelect.value = 'CCW_90';
+        } else {
+            rotationSelect.value = currentRot || 'NONE';
+        }
     }
 
+    updateSchematicDownload(version);
     calculate();
 }
 
@@ -508,6 +674,95 @@ function calculate() {
         // Effective X Propellant = (TOTAL Dropper Items) - (Switch Dropper Items) + 6
         const effectiveZ = switchDropper - 6;
         const effectiveX = totalDropper - switchDropper + 6;
+
+        const stacksTotal = Math.floor(totalDropper / 64);
+        const remTotal = totalDropper % 64;
+
+        const stacksZ = Math.floor(switchDropper / 64);
+        const remZ = switchDropper % 64;
+
+        document.getElementById('x-stacks').innerText = `${totalDropper} items (${stacksTotal} stacks + ${remTotal} remainder)`;
+        document.getElementById('z-stacks').innerText = `${switchDropper} items (${stacksZ} stacks + ${remZ} remainder)`;
+
+        const estX = ox + sx * (effectiveX * xConst);
+        const estZ = oz + sz * (effectiveZ * zConst);
+        updateEstimatedLocation(estX, estZ, tx, tz, true);
+        return;
+    }
+
+    // --- Mini Nuke Cannon Calculation ---
+    if (version === 'mininuke') {
+        const rotation = document.getElementById('rotation').value;
+        const dx = tx - ox;
+        const dz = tz - oz;
+
+        // Rotation sign compatibility maps
+        // NONE: (+X, -Z)
+        // CW_90: (+X, +Z)
+        // CW_180: (-X, +Z)
+        // CCW_90: (-X, -Z)
+        const rotSignsMiniNuke = {
+            'NONE':    { sx:  1, sz: -1, expX: '+X', expZ: '-Z' },
+            'CW_90':   { sx:  1, sz:  1, expX: '+X', expZ: '+Z' },
+            'CW_180':  { sx: -1, sz:  1, expX: '-X', expZ: '+Z' },
+            'CCW_90':  { sx: -1, sz: -1, expX: '-X', expZ: '-Z' },
+            'CCW_180': { sx: -1, sz: -1, expX: '-X', expZ: '-Z' }
+        };
+
+        const { sx, sz, expX, expZ } = rotSignsMiniNuke[rotation] || { sx: 1, sz: -1, expX: '+X', expZ: '-Z' };
+
+        // Check directional compatibility
+        const validX = (dx * sx) >= 0;
+        const validZ = (dz * sz) >= 0;
+
+        let errX = null;
+        let errZ = null;
+
+        if (!validX) {
+            errX = `Out of range: wrong direction (expected ${expX})`;
+        }
+        if (!validZ) {
+            errZ = `Out of range: wrong direction (expected ${expZ})`;
+        }
+
+        if (errX || errZ) {
+            document.getElementById('x-stacks').innerText = errX || 'Out of range';
+            document.getElementById('z-stacks').innerText = errZ || 'Out of range';
+            const summaryErr = (errX && errZ) ? 'Out of range (wrong direction for rotation)' : (errX || errZ);
+            updateEstimatedLocation(null, null, tx, tz, true, summaryErr);
+            return;
+        }
+
+        // Barrel constants (0.9 powder snow dampening applied)
+        const barrelA = 1.79984144484; // 1.9998238276037341 * 0.9
+        const barrelB = 1.76784492675; // 1.96427214083 * 0.9
+
+        // Rotation axis mapping (barrels swap world axes when rotated by 90 degrees):
+        // - NONE (+X, -Z) & CW_180 (-X, +Z): Constant X uses Barrel B, Constant Z uses Barrel A
+        // - CW_90 (+X, +Z) & CCW_90 (-X, -Z): Constant X uses Barrel A, Constant Z uses Barrel B
+        const isSwapped = (rotation === 'CW_90' || rotation === 'CCW_90' || rotation === 'CCW_180');
+        const xConst = isSwapped ? barrelA : barrelB;
+        const zConst = isSwapped ? barrelB : barrelA;
+
+        const targetXMotion = Math.abs(dx);
+        const targetZMotion = Math.abs(dz);
+
+        // 1. Calculate required propellant units for each axis based on absolute target displacement
+        const reqZ = Math.round(targetZMotion / zConst);
+        const reqX = Math.round(targetXMotion / xConst);
+
+        // 2. Dropper item distribution (compensating for the 10-pulse switch offset):
+        // Switch Dropper Items = Required_Z_Units + 10 (minimum 11 items to ensure at least 1 unit reaches Z)
+        const switchDropper = Math.max(11, reqZ + 10);
+
+        // TOTAL Dropper Items = Required_X_Units + Required_Z_Units (must be >= Switch Dropper Items)
+        const totalDropper = Math.max(switchDropper, reqX + reqZ);
+
+        // Effective propellant delivered:
+        // Effective Z Propellant = (Switch Dropper Items) - 10
+        // Effective X Propellant = (TOTAL Dropper Items) - (Switch Dropper Items) + 10
+        const effectiveZ = switchDropper - 10;
+        const effectiveX = totalDropper - switchDropper + 10;
 
         const stacksTotal = Math.floor(totalDropper / 64);
         const remTotal = totalDropper % 64;
